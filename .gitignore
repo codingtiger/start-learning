@@ -40,3 +40,7 @@ feature_maps/
 forward_flow/
 outputs/
 .matplotlib/
+conv2d_math/
+conv2d_features/
+maxpool2d_math/
+maxpool2d_features/

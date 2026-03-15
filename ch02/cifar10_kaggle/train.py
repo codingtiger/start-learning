@@ -28,7 +28,8 @@ from typing import Iterable, cast
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data" / "cifar-10"
 OUTPUT_DIR = BASE_DIR / "outputs"
-MPLCONFIG_DIR = BASE_DIR / ".matplotlib"
+PROJECT_ROOT = BASE_DIR.parents[0]
+MPLCONFIG_DIR = PROJECT_ROOT / ".matplotlib"
 
 MPLCONFIG_DIR.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("MPLCONFIGDIR", str(MPLCONFIG_DIR))
