@@ -1,9 +1,14 @@
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures
+
+# ── 基准目录（确保所有输出文件保存在脚本所在目录下） ────
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 设置中文字体
 plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'SimHei', 'DejaVu Sans']
@@ -54,7 +59,7 @@ for idx, degree in enumerate(degrees):
     ax.grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig('sin_fitting_results.png', dpi=300, bbox_inches='tight')
+plt.savefig(os.path.join(BASE_DIR, 'sin_fitting_results.png'), dpi=300, bbox_inches='tight')
 print("图像已保存为 'sin_fitting_results.png'")
 plt.show()
 

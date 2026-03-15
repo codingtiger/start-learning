@@ -25,3 +25,15 @@ Thumbs.db
 *.png
 *.jpg
 *.csv
+*.pdf
+
+# Model files
+*.pth
+*.pt
+
+# Dataset
+data/
+
+# Generated output directories
+feature_maps/
+forward_flow/
