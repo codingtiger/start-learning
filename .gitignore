@@ -33,7 +33,10 @@ Thumbs.db
 
 # Dataset
 data/
+raw/
 
 # Generated output directories
 feature_maps/
 forward_flow/
+outputs/
+.matplotlib/
