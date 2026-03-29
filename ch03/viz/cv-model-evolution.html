@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>深度学习计算机视觉模型演进全景图</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* ─── reset & base ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Noto Sans SC', system-ui, sans-serif;
+  background: #f0f2f5;
+  font-size: 12px;
+  color: #222;
+}
+
+/* ─── page wrapper ─── */
+.page {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 20px 16px 48px;
+}
+h1 {
+  text-align: center;
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #1a1a3e;
+  margin-bottom: 14px;
+  letter-spacing: .02em;
+}
+
+/* ─── outer frame ─── */
+.frame {
+  border: 2px solid #ccc;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 6px 32px rgba(0,0,0,.08);
+}
+
+/* ─── year timeline bar ─── */
+.year-bar {
+  background: #2c2c3e;
+  padding: 0 8px;
+  overflow-x: auto;
+}
+.year-list {
+  display: flex;
+  min-width: 1380px;
+}
+.year-item {
+  flex: 1;
+  text-align: center;
+  color: #ccc;
+  font-size: 9.5px;
+  font-family: monospace;
+  padding: 4px 0 3px;
+  border-right: 1px solid #444;
+  user-select: none;
+}
+.year-item:last-child { border-right: none; }
+
+/* ─── era rows ─── */
+.era-row {
+  display: flex;
+  border-top: 2px solid rgba(0,0,0,.1);
+  overflow-x: auto;
+}
+
+/* era sidebars */
+.era-sidebar {
+  min-width: 110px;
+  max-width: 110px;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #fff;
+  font-weight: 700;
+  flex-shrink: 0;
+  gap: 4px;
+}
+.era-sidebar .era-name {
+  font-size: 14px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.era-sidebar .era-years {
+  font-size: 10.5px;
+  font-weight: 400;
+  opacity: .92;
+}
+
+.era-found { background: #d4ecf7; }
+.era-found .era-sidebar { background: #3b9dbf; }
+
+.era-cnn { background: #fffbeb; }
+.era-cnn .era-sidebar { background: #d99c00; }
+
+.era-transformer { background: #f3ecfb; }
+.era-transformer .era-sidebar { background: #7d5ab5; }
+
+/* era body */
+.era-body {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 16px 14px 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* ─── generic model box ─── */
+.box {
+  background: #fff;
+  border: 1.5px solid #c0c8d4;
+  border-radius: 7px;
+  padding: 5px 9px;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07);
+  line-height: 1.4;
+}
+.box .bn { font-weight: 700; font-size: 12px; color: #1a1a3e; display: block; }
+.box .bd { font-size: 9.5px; color: #5a6a7a; display: block; margin-top: 1px; }
+
+/* highlighted boxes */
+.box-blue { border-color: #3b9dbf; background: #f0f8fc; }
+.box-amber { border-color: #d99c00; background: #fffdf0; }
+.box-purple { border-color: #7d5ab5; background: #f8f4fd; }
+.box-green { border-color: #4caf50; background: #f1fbf2; }
+.box-pink  { border-color: #e87080; background: #fef0f3; }
+.box-teal  { border-color: #36a890; background: #f0faf8; }
+
+/* ─── arrows ─── */
+.arr { /* horizontal → */
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 2px;
+  color: #666;
+  font-size: 15px;
+  line-height: 1;
+}
+.arr-down { /* vertical ↓ */
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 0;
+}
+/* SVG arrow helper */
+.svg-arr-h { flex-shrink: 0; }
+.svg-arr-v { display: block; margin: 0 auto; }
+
+/* ─── h-flow: horizontal chain ─── */
+.h-flow {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0;
+}
+
+/* ─── subsection blocks ─── */
+.subsec {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.subsec-header {
+  font-weight: 700;
+  font-size: 11px;
+  text-align: center;
+  padding: 3px 8px;
+  border-radius: 5px;
+  margin-bottom: 2px;
+}
+.sh-gray  { background: #e8eaed; color: #333; }
+.sh-blue  { background: #d8edf8; color: #1a5a7a; }
+.sh-amber { background: #fef3cd; color: #7a5000; }
+.sh-green { background: #ddf0df; color: #2d6b30; }
+.sh-pink  { background: #fde8ee; color: #8b1a3a; }
+.sh-purple{ background: #ece5f8; color: #4a2880; }
+.sh-teal  { background: #ddf4f0; color: #1a6b5a; }
+.sh-orange{ background: #fdeede; color: #8b3a00; }
+
+/* ─── FOUNDATION ERA ─── */
+.found-body {
+  align-items: center;
+  gap: 10px;
+}
+.found-label {
+  font-size: 10.5px;
+  color: #3b6c80;
+  font-style: italic;
+  margin-bottom: 4px;
+}
+
+/* ─── CNN ERA ─── */
+/* 深度加深 grid */
+.deep-arch {
+  display: grid;
+  grid-template-columns: auto 28px auto 28px auto;
+  grid-template-rows: auto 22px auto;
+  align-items: center;
+  justify-items: center;
+  gap: 0;
+}
+.deep-arch .arr-down { grid-column: 1; }
+
+/* detection section */
+.detect-section { display: flex; flex-direction: column; gap: 5px; }
+.stage-row { display: flex; align-items: center; gap: 2px; }
+.stage-label {
+  font-size: 9.5px;
+  color: #555;
+  white-space: nowrap;
+  min-width: 50px;
+}
+
+/* cross-conn separator */
+.cross-conn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  gap: 2px;
+}
+.cross-conn-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #555;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 2px;
+}
+
+/* seg / lightweight / special */
+.vert-list { display: flex; flex-direction: column; gap: 5px; align-items: center; }
+.pair-row  { display: flex; gap: 5px; }
+
+/* ─── POST-CNN ERA ─── */
+/* Each sub-column */
+.transformer-col {
+  flex-shrink: 0;
+  min-width: 155px;
+}
+
+/* ─── APPLICATIONS ─── */
+.apps-section {
+  border-top: 2px solid rgba(0,0,0,.1);
+  background: #f8f8f8;
+  padding: 14px 16px;
+}
+.apps-title {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a3e;
+  margin-bottom: 12px;
+}
+.apps-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.app-card {
+  background: #fff;
+  border: 1.5px solid #dde2e8;
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-width: 110px;
+  max-width: 130px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 5px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.06);
+}
+.app-icon { font-size: 1.6rem; line-height: 1; }
+.app-num  { font-size: 9px; color: #888; font-weight: 600; }
+.app-name { font-size: 12px; font-weight: 700; color: #1a1a3e; }
+.app-desc { font-size: 9.5px; color: #607080; line-height: 1.4; }
+
+/* ─── utils ─── */
+.divider-v {
+  width: 1px;
+  background: rgba(0,0,0,.1);
+  align-self: stretch;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>深度学习计算机视觉模型演进全景图</h1>
+
+  <div class="frame">
+
+    <!-- ═══════════════ YEAR TIMELINE ═══════════════ -->
+    <div class="year-bar">
+      <div class="year-list" id="yearList"></div>
+    </div>
+
+    <!-- ═══════════════ ERA 1: 莫基时代 ═══════════════ -->
+    <div class="era-row era-found">
+      <div class="era-sidebar">
+        <span class="era-name">莫基时代</span>
+        <span class="era-years">1909 ~ 2011</span>
+      </div>
+      <div class="era-body found-body">
+        <!-- label -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;margin-right:4px;">
+          <span class="found-label" style="writing-mode:vertical-rl;letter-spacing:2px;">早期的算法级操作</span>
+        </div>
+        <!-- arrow down into flow -->
+        <svg class="svg-arr-v" width="14" height="32" viewBox="0 0 14 32"><line x1="7" y1="0" x2="7" y2="24" stroke="#666" stroke-width="1.5"/><polygon points="3,24 7,32 11,24" fill="#666"/></svg>
+
+        <!-- Neocognitron -->
+        <div class="box">
+          <span class="bn">Neocognitron</span>
+        </div>
+
+        <!-- → -->
+        <svg class="svg-arr-h" width="28" height="16" viewBox="0 0 28 16"><line x1="0" y1="8" x2="20" y2="8" stroke="#666" stroke-width="1.5"/><polygon points="20,4 28,8 20,12" fill="#666"/></svg>
+
+        <!-- LeNet-5 -->
+        <div class="box box-blue">
+          <span class="bn">LeNet-5</span>
+          <span class="bd">Yann LeCun</span>
+          <span class="bd">AT&T Labs</span>
+        </div>
+
+        <!-- → -->
+        <svg class="svg-arr-h" width="36" height="16" viewBox="0 0 36 16"><line x1="0" y1="8" x2="28" y2="8" stroke="#666" stroke-width="1.5"/><polygon points="28,4 36,8 28,12" fill="#666"/></svg>
+
+        <!-- ImageNet -->
+        <div class="box box-blue">
+          <span class="bn">ImageNet 数据集</span>
+          <span class="bd">Fei-Fei Li's Team, 2009</span>
+        </div>
+
+        <!-- → -->
+        <svg class="svg-arr-h" width="28" height="16" viewBox="0 0 28 16"><line x1="0" y1="8" x2="20" y2="8" stroke="#666" stroke-width="1.5"/><polygon points="20,4 28,8 20,12" fill="#666"/></svg>
+
+        <!-- GPU/CUDA -->
+        <div class="box box-blue">
+          <span class="bn">GPU 加速 / CUDA</span>
+          <span class="bd">circa 2009</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ ERA 2: CNN ═══════════════ -->
+    <div class="era-row era-cnn">
+      <div class="era-sidebar">
+        <span class="era-name">CNN<br>爆发时代</span>
+        <span class="era-years">2012 ~ 2018</span>
+      </div>
+      <div class="era-body" style="align-items:flex-start;gap:6px;padding-top:10px;padding-bottom:10px;">
+
+        <!-- ── 深度加深 ── -->
+        <div class="subsec">
+          <div class="subsec-header sh-gray">深度加深</div>
+          <!-- 2×3 grid with arrows -->
+          <div class="deep-arch" style="min-width:340px;">
+            <!-- Row 1 -->
+            <div class="box box-amber" style="min-width:84px;">
+              <span class="bn">AlexNet</span>
+              <span class="bd">Alex Krizhevsky</span>
+            </div>
+            <svg width="28" height="16" viewBox="0 0 28 16"><line x1="0" y1="8" x2="20" y2="8" stroke="#888" stroke-width="1.5"/><polygon points="20,4 28,8 20,12" fill="#888"/></svg>
+            <div class="box box-amber" style="min-width:96px;">
+              <span class="bn">VGG  2014</span>
+              <span class="bd">Visual Geometry Group</span>
+            </div>
+            <svg width="28" height="16" viewBox="0 0 28 16"><line x1="0" y1="8" x2="20" y2="8" stroke="#888" stroke-width="1.5"/><polygon points="20,4 28,8 20,12" fill="#888"/></svg>
+            <div class="box box-amber" style="min-width:96px;">
+              <span class="bn">GoogLeNet 2014</span>
+              <span class="bd">Christian Szegedy</span>
+            </div>
+
+            <!-- v-arrows row -->
+            <svg width="14" height="22" viewBox="0 0 14 22"><line x1="7" y1="0" x2="7" y2="14" stroke="#888" stroke-width="1.5"/><polygon points="3,14 7,22 11,14" fill="#888"/></svg>
+            <span></span>
+            <svg width="14" height="22" viewBox="0 0 14 22"><line x1="7" y1="0" x2="7" y2="14" stroke="#888" stroke-width="1.5"/><polygon points="3,14 7,22 11,14" fill="#888"/></svg>
+            <span></span>
+            <svg width="14" height="22" viewBox="0 0 14 22"><line x1="7" y1="0" x2="7" y2="14" stroke="#888" stroke-width="1.5"/><polygon points="3,14 7,22 11,14" fill="#888"/></svg>
+
+            <!-- Row 2 -->
+            <div class="box" style="min-width:84px;">
+              <span class="bn">HighwayNet</span>
+            </div>
+            <svg width="28" height="16" viewBox="0 0 28 16"><line x1="0" y1="8" x2="20" y2="8" stroke="#888" stroke-width="1.5"/><polygon points="20,4 28,8 20,12" fill="#888"/></svg>
+            <div class="box box-amber" style="min-width:96px;">
+              <span class="bn">ResNet</span>
+              <span class="bd">Kaiming He · Microsoft</span>
+            </div>
+            <svg width="28" height="16" viewBox="0 0 28 16"><line x1="0" y1="8" x2="20" y2="8" stroke="#888" stroke-width="1.5"/><polygon points="20,4 28,8 20,12" fill="#888"/></svg>
+            <div class="box box-amber" style="min-width:96px;">
+              <span class="bn">DenseNet</span>
+              <span class="bd">Gao Huang</span>
+            </div>
+          </div>
+          <!-- bottom arrow (跨连 hint) -->
+          <div style="display:flex;justify-content:center;margin-top:2px;">
+            <svg width="14" height="22" viewBox="0 0 14 22"><line x1="7" y1="0" x2="7" y2="14" stroke="#888" stroke-width="1.5"/><polygon points="3,14 7,22 11,14" fill="#888"/></svg>
+          </div>
+        </div>
+
+        <!-- ── 跨连 separator ── -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;align-self:center;padding:0 4px;">
+          <span style="font-size:10px;font-weight:700;color:#888;writing-mode:vertical-rl;letter-spacing:3px;padding:6px 0;">跨连</span>
+          <svg width="14" height="28" viewBox="0 0 14 28"><line x1="7" y1="0" x2="7" y2="20" stroke="#aaa" stroke-width="1.5"/><polygon points="3,20 7,28 11,20" fill="#aaa"/></svg>
+        </div>
+
+        <!-- ── 区域/目标检测 ── -->
+        <div class="subsec" style="min-width:240px;">
+          <div class="subsec-header sh-blue">区域 / 目标检测</div>
+          <div class="detect-section">
+            <!-- Two-stage -->
+            <div class="stage-row">
+              <span class="stage-label">Two-stage:</span>
+              <div class="box" style="min-width:60px;"><span class="bn">R-CNN</span></div>
+              <svg width="24" height="14" viewBox="0 0 24 14"><line x1="0" y1="7" x2="16" y2="7" stroke="#888" stroke-width="1.5"/><polygon points="16,3 24,7 16,11" fill="#888"/></svg>
+              <div class="box" style="min-width:72px;"><span class="bn">Fast R-CNN</span></div>
+              <svg width="24" height="14" viewBox="0 0 24 14"><line x1="0" y1="7" x2="16" y2="7" stroke="#888" stroke-width="1.5"/><polygon points="16,3 24,7 16,11" fill="#888"/></svg>
+              <div class="box box-blue" style="min-width:74px;"><span class="bn">Faster R-CNN</span></div>
+            </div>
+            <!-- One-stage -->
+            <div class="stage-row">
+              <span class="stage-label">One-stage:</span>
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <div class="box"><span class="bn">YOLOv1-v3</span></div>
+                <div class="box"><span class="bn">SSD</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider-v"></div>
+
+        <!-- ── 分割 ── -->
+        <div class="subsec" style="min-width:90px;">
+          <div class="subsec-header sh-green">分割</div>
+          <div class="vert-list">
+            <div class="box"><span class="bn">FCN</span></div>
+            <div class="box"><span class="bn">PSP</span></div>
+            <div class="box box-green"><span class="bn">Mask R-CNN</span></div>
+          </div>
+        </div>
+
+        <div class="divider-v"></div>
+
+        <!-- ── 轻量化 ── -->
+        <div class="subsec" style="min-width:105px;">
+          <div class="subsec-header sh-orange">轻量化</div>
+          <div class="vert-list">
+            <div class="box"><span class="bn">SqueezeNet</span></div>
+            <div class="box box-amber">
+              <span class="bn">MobileNets</span>
+              <span class="bd">(v1, v2)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider-v"></div>
+
+        <!-- ── 特殊网络 ── -->
+        <div class="subsec" style="min-width:155px;">
+          <div class="subsec-header sh-pink">特殊网络</div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <div class="pair-row">
+              <div class="box"><span class="bn">SiameseNet</span></div>
+              <div class="box"><span class="bn">NASNet</span></div>
+            </div>
+            <div class="pair-row">
+              <div class="box"><span class="bn">DCGAN</span></div>
+              <div class="box"><span class="bn">Xception</span></div>
+            </div>
+            <div class="pair-row">
+              <div class="box"><span class="bn">NIN</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- era-body -->
+    </div><!-- era-row -->
+
+    <!-- ═══════════════ ERA 3: 后CNN & Transformer ═══════════════ -->
+    <div class="era-row era-transformer">
+      <div class="era-sidebar">
+        <span class="era-name" style="font-size:12px;">后CNN &<br>Transformer</span>
+        <span class="era-years">2019 ~ 至今</span>
+      </div>
+      <div class="era-body" style="align-items:flex-start;gap:6px;padding-top:10px;padding-bottom:10px;">
+
+        <!-- ── 视觉 Transformer ── -->
+        <div class="subsec transformer-col">
+          <div class="subsec-header sh-blue">视觉 Transformer</div>
+          <div class="vert-list" style="align-items:flex-start;gap:7px;">
+            <div class="box box-purple" style="min-width:145px;">
+              <span class="bn">ViT (Vision Transformer)</span>
+              <span class="bd">开创视觉 Transformer 时代</span>
+              <span class="bd">Google, 2020</span>
+            </div>
+            <div class="box box-purple" style="min-width:145px;">
+              <span class="bn">Swin Transformer</span>
+              <span class="bd">层次化视觉 Transformer</span>
+              <span class="bd">Microsoft, 2021</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider-v"></div>
+
+        <!-- ── 现代 CNN 反击 ── -->
+        <div class="subsec transformer-col" style="min-width:130px;">
+          <div class="subsec-header sh-amber">现代 CNN 反击</div>
+          <div class="vert-list" style="align-items:flex-start;gap:7px;">
+            <div class="box box-amber" style="min-width:120px;">
+              <span class="bn">EfficientNetV2</span>
+            </div>
+            <div class="box box-amber" style="min-width:120px;">
+              <span class="bn">ConvNeXt</span>
+              <span class="bd">现代积积网络再战 Transformer</span>
+              <span class="bd">Meta, 2022</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider-v"></div>
+
+        <!-- ── 目标检测/分割大模型 ── -->
+        <div class="subsec transformer-col" style="min-width:165px;">
+          <div class="subsec-header sh-green">目标检测 / 分割大模型</div>
+          <div class="vert-list" style="align-items:flex-start;gap:7px;">
+            <div class="box box-green" style="min-width:155px;">
+              <span class="bn">DETR</span>
+              <span class="bd">端到端 Transformer 检测</span>
+              <span class="bd">Meta, 2020</span>
+            </div>
+            <div class="box box-green" style="min-width:155px;">
+              <span class="bn">SAM (Segment Anything Model)</span>
+              <span class="bd">分割一切 · Meta, 2023</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider-v"></div>
+
+        <!-- ── 生成式 AI ── -->
+        <div class="subsec transformer-col" style="min-width:175px;">
+          <div class="subsec-header sh-pink">生成式 AI（AIGC）</div>
+          <div style="display:flex;flex-direction:column;gap:7px;">
+            <!-- GAN chain -->
+            <div class="h-flow" style="gap:4px;">
+              <div class="box"><span class="bn">DCGAN</span></div>
+              <svg width="24" height="14" viewBox="0 0 24 14"><line x1="0" y1="7" x2="16" y2="7" stroke="#888" stroke-width="1.5"/><polygon points="16,3 24,7 16,11" fill="#888"/></svg>
+              <div class="box box-pink" style="min-width:70px;">
+                <span class="bn">StyleGANs</span>
+              </div>
+            </div>
+            <!-- Diffusion -->
+            <div style="display:flex;align-items:flex-start;gap:4px;">
+              <svg width="14" height="24" viewBox="0 0 14 24"><line x1="7" y1="0" x2="7" y2="16" stroke="#888" stroke-width="1.5"/><polygon points="3,16 7,24 11,16" fill="#888"/></svg>
+              <div class="box box-pink" style="min-width:150px;">
+                <span class="bn">扩散模型</span>
+                <span class="bd">Stable Diffusion · Midjourney</span>
+                <span class="bd">2022 ~ 至今</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider-v"></div>
+
+        <!-- ── 多模态 & 自监督 ── -->
+        <div class="subsec transformer-col" style="min-width:165px;">
+          <div class="subsec-header sh-teal">多模态 &amp; 自监督学习</div>
+          <div class="vert-list" style="align-items:flex-start;gap:7px;">
+            <div class="box box-green" style="min-width:155px;">
+              <span class="bn">CLIP</span>
+              <span class="bd">视觉-文字对比学习</span>
+              <span class="bd">OpenAI, 2021</span>
+            </div>
+            <div class="box box-green" style="min-width:155px;">
+              <span class="bn">MAE</span>
+              <span class="bd">Masked Autoencoder</span>
+              <span class="bd">Meta, 2021</span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- era-body -->
+    </div><!-- era-row -->
+
+    <!-- ═══════════════ APPLICATIONS ═══════════════ -->
+    <div class="apps-section">
+      <div class="apps-title">10 大计算机视觉应用场景</div>
+      <div class="apps-grid">
+        <div class="app-card">
+          <div class="app-icon">🖼️</div>
+          <div class="app-num">1.</div>
+          <div class="app-name">图像分类</div>
+          <div class="app-desc">皮肤病变分类<br>相册分类</div>
+        </div>
+        <div class="app-card">
+          <div class="app-icon">🎯</div>
+          <div class="app-num">2.</div>
+          <div class="app-name">目标检测</div>
+          <div class="app-desc">自动驾驶行人/<br>车辆检测</div>
+        </div>
+        <div class="app-card">
+          <div class="app-icon">✂️</div>
+          <div class="app-num">3.</div>
+          <div class="app-name">图像分割</div>
+          <div class="app-desc">自然场景分割<br>医疗扫描分割</div>
+        </div>
+        <div class="app-card">
+          <div class="app-icon">📝</div>
+          <div class="app-num">4.</div>
+          <div class="app-name">标题生成</div>
+          <div class="app-desc">自动场景描述<br>视障辅助</div>
+        </div>
+        <div class="app-card">
+          <div class="app-icon">🎨</div>
+          <div class="app-num">5.</div>
+          <div class="app-name">图像合成</div>
+          <div class="app-desc">人脸生成<br>文本生图 AIGC</div>
+        </div>
+        <div class="app-card">
+          <div class="app-icon">🔧</div>
+          <div class="app-num">6.</div>
+          <div class="app-name">图像修补</div>
+          <div class="app-desc">对象移除<br>一键擦除</div>
+        </div>
+        <div class="app-card">
+          <div class="app-icon">🖌️</div>
+          <div class="app-num">7.</div>
+          <div class="app-name">风格迁移</div>
+          <div class="app-desc">梵高风格滤镜<br>艺术创作</div>
+        </div>
+        <div class="app-card">
+          <div class="app-icon">🔍</div>
+          <div class="app-num">8.</div>
+          <div class="app-name">图像超分</div>
+          <div class="app-desc">老照片修复<br>高清化</div>
+        </div>
+        <div class="app-card">
+          <div class="app-icon">📐</div>
+          <div class="app-num">9.</div>
+          <div class="app-name">深度预测</div>
+          <div class="app-desc">像素级深度计算<br>背景虚化</div>
+        </div>
+        <div class="app-card">
+          <div class="app-icon">🌐</div>
+          <div class="app-num">10.</div>
+          <div class="app-name">场景重建</div>
+          <div class="app-desc">2D 转 3D<br>三维建模</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- frame -->
+</div><!-- page -->
+
+<script>
+// Generate year labels 1989-2024
+(function () {
+  var list = document.getElementById('yearList');
+  for (var y = 1989; y <= 2024; y++) {
+    var div = document.createElement('div');
+    div.className = 'year-item';
+    div.textContent = y;
+    list.appendChild(div);
+  }
+}());
+</script>
+</body>
+</html>
