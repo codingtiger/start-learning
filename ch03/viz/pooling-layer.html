@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>池化层计算动画 · Pooling Layer</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<style>
+:root {
+  --bg-deep: #0a0e1a;
+  --bg-card: #111827;
+  --accent-blue: #3b82f6;
+  --accent-cyan: #06b6d4;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-rose: #f43f5e;
+  --accent-violet: #8b5cf6;
+  --accent-orange: #f97316;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-dim: #475569;
+  --border: #1e293b;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: 'Noto Sans SC', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.grain-overlay {
+  position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+header {
+  text-align: center;
+  padding: 48px 24px 24px;
+  position: relative;
+}
+
+header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 120px; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-orange), transparent);
+}
+
+header h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.8rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--accent-amber), var(--accent-orange), var(--accent-rose));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+header p {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px 64px;
+}
+
+.legend {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  padding: 16px 0 8px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.legend-color {
+  width: 14px; height: 14px;
+  border-radius: 4px;
+}
+
+.param-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  flex-wrap: wrap;
+}
+
+.param-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(17,24,39,0.6);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px 8px;
+}
+
+.param-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 0 8px;
+}
+
+.param-btn {
+  background: transparent;
+  border: 1px solid rgba(100,116,139,0.3);
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.25s ease;
+}
+
+.param-btn:hover { border-color: var(--accent-orange); color: var(--text-primary); }
+.param-btn.active {
+  background: linear-gradient(135deg, rgba(249,115,22,0.2), rgba(245,158,11,0.15));
+  border-color: var(--accent-orange);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(249,115,22,0.25);
+}
+
+.param-btn.mode-max.active {
+  background: linear-gradient(135deg, rgba(244,63,94,0.2), rgba(249,115,22,0.15));
+  border-color: var(--accent-rose);
+  box-shadow: 0 0 12px rgba(244,63,94,0.25);
+}
+
+.param-btn.mode-avg.active {
+  background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(6,182,212,0.15));
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 12px rgba(59,130,246,0.25);
+}
+
+.output-size-display {
+  text-align: center;
+  padding: 4px 0 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.output-size-display .val { color: var(--accent-orange); font-weight: 700; }
+
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 0 8px;
+  flex-wrap: wrap;
+}
+
+.ctrl-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 10px 28px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.ctrl-btn:hover { border-color: var(--accent-orange); color: var(--text-primary); }
+.ctrl-btn.active {
+  border-color: var(--accent-amber);
+  color: #fff;
+  background: linear-gradient(135deg, rgba(249,115,22,0.2), rgba(245,158,11,0.2));
+  box-shadow: 0 0 20px rgba(249,115,22,0.3);
+}
+
+.ctrl-btn.primary {
+  background: linear-gradient(135deg, var(--accent-orange), var(--accent-rose));
+  border-color: transparent;
+  color: #fff;
+}
+
+.ctrl-btn.primary:hover {
+  box-shadow: 0 0 24px rgba(249,115,22,0.4);
+  transform: translateY(-1px);
+}
+
+.speed-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  padding-bottom: 12px;
+}
+
+.speed-control label {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.speed-slider {
+  -webkit-appearance: none;
+  width: 150px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+}
+
+.speed-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent-orange);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(249,115,22,0.4);
+}
+
+.step-display {
+  text-align: center;
+  padding: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.step-display .hl { color: var(--accent-amber); font-weight: 700; }
+
+.comp-detail {
+  text-align: center;
+  padding: 8px;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.comp-detail .calc-box {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  color: var(--text-primary);
+  background: rgba(249,115,22,0.08);
+  padding: 8px 20px;
+  border-radius: 10px;
+  border: 1px solid rgba(249,115,22,0.2);
+  line-height: 1.6;
+}
+
+.comp-detail .calc-box .winner { color: var(--accent-rose); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.comp-detail .calc-box .avg-val { color: var(--accent-blue); font-weight: 700; }
+
+.canvas-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+  overflow-x: auto;
+}
+
+canvas {
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+.info-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.info-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.info-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 4px; height: 100%;
+}
+
+.info-card.orange::before { background: var(--accent-orange); }
+.info-card.rose::before { background: var(--accent-rose); }
+.info-card.blue::before { background: var(--accent-blue); }
+.info-card.emerald::before { background: var(--accent-emerald); }
+.info-card.amber::before { background: var(--accent-amber); }
+.info-card.violet::before { background: var(--accent-violet); }
+
+.info-card h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-card .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.badge-orange { background: rgba(249,115,22,0.15); color: var(--accent-orange); border: 1px solid rgba(249,115,22,0.3); }
+.badge-rose { background: rgba(244,63,94,0.15); color: var(--accent-rose); border: 1px solid rgba(244,63,94,0.3); }
+.badge-blue { background: rgba(59,130,246,0.15); color: var(--accent-blue); border: 1px solid rgba(59,130,246,0.3); }
+.badge-emerald { background: rgba(16,185,129,0.15); color: var(--accent-emerald); border: 1px solid rgba(16,185,129,0.3); }
+.badge-amber { background: rgba(245,158,11,0.15); color: var(--accent-amber); border: 1px solid rgba(245,158,11,0.3); }
+.badge-violet { background: rgba(139,92,246,0.15); color: var(--accent-violet); border: 1px solid rgba(139,92,246,0.3); }
+
+.info-card p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.math-line {
+  font-family: 'JetBrains Mono', monospace;
+  padding: 8px 12px;
+  background: rgba(15,23,42,0.8);
+  border-radius: 8px;
+  margin: 8px 0;
+  border: 1px solid rgba(100,116,139,0.2);
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+</style>
+</head>
+<body>
+<div class="grain-overlay"></div>
+
+<header>
+  <h1>Pooling Layer</h1>
+  <p>池化层计算过程 · 下采样与特征压缩</p>
+</header>
+
+<div class="container">
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-color" style="background:rgba(6,182,212,0.5);border:2px solid #06b6d4;"></div>输入特征图</div>
+    <div class="legend-item"><div class="legend-color" style="background:rgba(139,92,246,0.4);border:2px solid #8b5cf6;"></div>Padding</div>
+    <div class="legend-item"><div class="legend-color" style="background:rgba(249,115,22,0.5);border:2px solid #f97316;"></div>池化窗口</div>
+    <div class="legend-item"><div class="legend-color" style="background:rgba(16,185,129,0.5);border:2px solid #10b981;"></div>输出特征图</div>
+    <div class="legend-item"><div class="legend-color" style="background:rgba(244,63,94,0.5);border:2px solid #f43f5e;"></div>Max 选中值</div>
+  </div>
+
+  <div class="param-row">
+    <div class="param-group">
+      <span class="param-label">Mode</span>
+      <button class="param-btn mode-max active" data-param="mode" data-val="max">Max</button>
+      <button class="param-btn mode-avg" data-param="mode" data-val="avg">Avg</button>
+    </div>
+    <div class="param-group">
+      <span class="param-label">Pool</span>
+      <button class="param-btn active" data-param="pool" data-val="2">2×2</button>
+      <button class="param-btn" data-param="pool" data-val="3">3×3</button>
+    </div>
+    <div class="param-group">
+      <span class="param-label">Stride</span>
+      <button class="param-btn active" data-param="stride" data-val="2">2</button>
+      <button class="param-btn" data-param="stride" data-val="1">1</button>
+    </div>
+    <div class="param-group">
+      <span class="param-label">Padding</span>
+      <button class="param-btn active" data-param="padding" data-val="0">0</button>
+      <button class="param-btn" data-param="padding" data-val="1">1</button>
+    </div>
+  </div>
+
+  <div class="output-size-display" id="sizeDisplay"></div>
+
+  <div class="controls">
+    <button class="ctrl-btn primary" id="btnPlay">▶ 播放</button>
+    <button class="ctrl-btn" id="btnPause">⏸ 暂停</button>
+    <button class="ctrl-btn" id="btnStep">⏭ 单步</button>
+    <button class="ctrl-btn" id="btnReset">↺ 重置</button>
+  </div>
+
+  <div class="speed-control">
+    <label>速度</label>
+    <input type="range" class="speed-slider" id="speedSlider" min="1" max="10" value="5">
+    <span id="speedLabel" style="color:var(--accent-orange);font-family:'JetBrains Mono',monospace;font-size:0.85rem;">1.0x</span>
+  </div>
+
+  <div class="step-display" id="stepDisplay"></div>
+  <div class="comp-detail" id="compDetail"></div>
+
+  <div class="canvas-wrap">
+    <canvas id="poolCanvas"></canvas>
+  </div>
+
+  <div class="info-panel">
+    <div class="info-card rose">
+      <h3><span class="badge badge-rose">1</span> Max Pooling</h3>
+      <p>在每个池化窗口内取<strong>最大值</strong>，保留最显著的特征激活，同时对微小的位移具有不变性。</p>
+      <div class="math-line">$$y_{i,j} = \max_{(m,n) \in \mathcal{R}_{i,j}} x_{m,n}$$</div>
+    </div>
+    <div class="info-card blue">
+      <h3><span class="badge badge-blue">2</span> Average Pooling</h3>
+      <p>在每个池化窗口内取<strong>平均值</strong>，综合区域内所有特征的贡献，输出更平滑。常用于网络末层做全局特征聚合。</p>
+      <div class="math-line">$$y_{i,j} = \frac{1}{k^2}\sum_{(m,n) \in \mathcal{R}_{i,j}} x_{m,n}$$</div>
+    </div>
+    <div class="info-card orange">
+      <h3><span class="badge badge-orange">3</span> 输出尺寸</h3>
+      <p>输出尺寸由输入大小 $I$、池化窗口 $K$、步长 $S$ 和填充 $P$ 共同决定：</p>
+      <div class="math-line">$$O = \left\lfloor \frac{I + 2P - K}{S} \right\rfloor + 1$$</div>
+    </div>
+    <div class="info-card violet">
+      <h3><span class="badge badge-violet">4</span> 池化 Padding</h3>
+      <p>池化层同样支持 padding（如 PyTorch 的 <code style="color:var(--accent-violet)">nn.MaxPool2d(k, s, padding)</code>）。</p>
+      <p style="margin-top:6px">• <strong>Max Pooling</strong>：padding 填充 $-\infty$，确保填充值永远不会被选中</p>
+      <p>• <strong>Average Pooling</strong>：padding 填充 $0$，会参与均值计算（<code style="color:var(--accent-blue)">count_include_pad=True</code>）</p>
+      <p style="margin-top:6px">典型场景：3×3 pool + padding=1 + stride=1 可保持输出与输入同尺寸。</p>
+    </div>
+    <div class="info-card emerald">
+      <h3><span class="badge badge-emerald">5</span> 无可学习参数</h3>
+      <p>与卷积层不同，池化层<strong>没有可学习的权重</strong>，仅执行固定的聚合操作。这使其计算高效且不增加模型参数量。</p>
+    </div>
+    <div class="info-card amber">
+      <h3><span class="badge badge-amber">6</span> Max vs Avg 对比</h3>
+      <p>• <strong>Max Pooling</strong>：保留强特征，丢弃弱响应，常用于分类网络的中间层</p>
+      <p>• <strong>Average Pooling</strong>：保留整体分布信息，常用于 Global Average Pooling (GAP) 替代全连接层</p>
+      <p style="margin-top:6px">切换上方 Mode / Padding 按钮对比不同池化配置的效果。</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('poolCanvas');
+const ctx = canvas.getContext('2d');
+
+const INPUT_SIZE = 6;
+
+const inputData = [
+  [ 1,  3,  2,  0,  4,  1],
+  [ 5,  7,  6,  2,  3,  8],
+  [ 4,  2,  9,  1,  0,  5],
+  [ 3,  6,  1,  8,  7,  2],
+  [ 0,  4,  5,  3,  6,  9],
+  [ 8,  1,  2,  7,  4,  3]
+];
+
+let poolMode = 'max';
+let poolSize = 2;
+let stride = 2;
+let padding = 0;
+let CELL, paddedSize, outputSize, totalSteps;
+let paddedInput, outputData;
+let currentStep = 0;
+let animating = false;
+let animTimer = null;
+let animSpeed = 1.0;
+
+function calcCell() {
+  const ps = INPUT_SIZE + 2 * padding;
+  const os = Math.floor((ps - poolSize) / stride) + 1;
+  const total = ps + os;
+  const maxW = Math.min(960, window.innerWidth - 60);
+  return Math.min(58, Math.max(34, Math.floor((maxW - 180) / total)));
+}
+
+function isPadCell(r, c) {
+  return padding > 0 && (r < padding || r >= padding + INPUT_SIZE || c < padding || c >= padding + INPUT_SIZE);
+}
+
+function buildPaddedInput() {
+  paddedSize = INPUT_SIZE + 2 * padding;
+  const fillVal = poolMode === 'max' ? -Infinity : 0;
+  paddedInput = Array.from({length: paddedSize}, () => Array(paddedSize).fill(fillVal));
+  for (let r = 0; r < INPUT_SIZE; r++)
+    for (let c = 0; c < INPUT_SIZE; c++)
+      paddedInput[r + padding][c + padding] = inputData[r][c];
+}
+
+function rebuild() {
+  CELL = calcCell();
+  buildPaddedInput();
+  outputSize = Math.floor((paddedSize - poolSize) / stride) + 1;
+  totalSteps = outputSize * outputSize;
+  outputData = Array.from({length: outputSize}, () => Array(outputSize).fill(null));
+}
+
+function pos(step) {
+  return { r: Math.floor(step / outputSize), c: step % outputSize };
+}
+
+function poolCompute(pr, pc) {
+  const vals = [];
+  const cells = [];
+  for (let m = 0; m < poolSize; m++) {
+    for (let n = 0; n < poolSize; n++) {
+      const ir = pr * stride + m;
+      const ic = pc * stride + n;
+      const v = paddedInput[ir][ic];
+      const isPad = isPadCell(ir, ic);
+      vals.push(v);
+      cells.push({ ir, ic, v, isPad });
+    }
+  }
+  if (poolMode === 'max') {
+    const mx = Math.max(...vals);
+    const winIdx = vals.indexOf(mx);
+    return { result: mx, vals, cells, winIdx };
+  } else {
+    const sum = vals.reduce((a, b) => a + b, 0);
+    const avg = sum / vals.length;
+    return { result: parseFloat(avg.toFixed(2)), vals, cells, sum, avg };
+  }
+}
+
+function layout() {
+  const iW = paddedSize * CELL;
+  const iH = paddedSize * CELL;
+  const oW = outputSize * CELL;
+  const oH = outputSize * CELL;
+  const gap = 80;
+  const mx = 40;
+  const cW = iW + gap + oW + mx * 2;
+  const topM = 56;
+  const botM = 56;
+  const cH = Math.max(iH, oH) + topM + botM;
+  const ix = mx;
+  const iy = topM;
+  const ox = ix + iW + gap;
+  const oy = topM + (iH - oH) / 2;
+  return { cW, cH, ix, iy, ox, oy, iW, iH, oW, oH, gap };
+}
+
+function roundRect(x, y, w, h, r, fill, stroke, lw) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; ctx.stroke(); }
+}
+
+function drawCell(x, y, val, bg, tc, bc, bw, glow, isWinner) {
+  if (glow) {
+    ctx.save();
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = 14;
+    roundRect(x+1, y+1, CELL-2, CELL-2, 5, bg, bc, bw || 1);
+    ctx.restore();
+  } else {
+    roundRect(x+1, y+1, CELL-2, CELL-2, 5, bg, bc, bw || 1);
+  }
+  if (isWinner) {
+    ctx.save();
+    const t = Date.now() / 600;
+    const pulse = 0.6 + 0.4 * Math.sin(t);
+    ctx.shadowColor = `rgba(244,63,94,${pulse * 0.6})`;
+    ctx.shadowBlur = 12;
+    roundRect(x+3, y+3, CELL-6, CELL-6, 4, null, `rgba(244,63,94,${0.5 + pulse * 0.5})`, 2);
+    ctx.restore();
+  }
+  const fs = Math.max(12, Math.round(CELL * 0.28));
+  ctx.font = `600 ${fs}px "JetBrains Mono", monospace`;
+  ctx.fillStyle = tc || '#f1f5f9';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  if (val !== null && val !== undefined) {
+    ctx.fillText(String(val), x + CELL/2, y + CELL/2);
+  }
+}
+
+function drawLabel(x, y, text, color) {
+  ctx.fillStyle = color || '#94a3b8';
+  ctx.font = '600 12px "Noto Sans SC", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(text, x, y);
+}
+
+function drawArrow(fx, fy, tx, ty, color) {
+  ctx.save();
+  ctx.strokeStyle = color || 'rgba(148,163,184,0.35)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  const mx = (fx + tx) / 2;
+  ctx.beginPath();
+  ctx.moveTo(fx, fy);
+  ctx.bezierCurveTo(mx, fy - 16, mx, ty - 16, tx, ty);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = color || 'rgba(148,163,184,0.35)';
+  const a = Math.atan2(16, tx - mx);
+  ctx.beginPath();
+  ctx.moveTo(tx, ty);
+  ctx.lineTo(tx - 9 * Math.cos(a - 0.4), ty - 9 * Math.sin(a - 0.4));
+  ctx.lineTo(tx - 9 * Math.cos(a + 0.4), ty - 9 * Math.sin(a + 0.4));
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function draw() {
+  const L = layout();
+  canvas.width = L.cW;
+  canvas.height = L.cH;
+  ctx.clearRect(0, 0, L.cW, L.cH);
+
+  const step = Math.min(currentStep, totalSteps - 1);
+  const { r: pr, c: pc } = pos(step);
+  const done = currentStep >= totalSteps;
+
+  const rfSet = new Set();
+  let winnerKey = null;
+  if (!done) {
+    const info = poolCompute(pr, pc);
+    for (let m = 0; m < poolSize; m++)
+      for (let n = 0; n < poolSize; n++)
+        rfSet.add(`${pr * stride + m},${pc * stride + n}`);
+    if (poolMode === 'max') {
+      const wc = info.cells[info.winIdx];
+      winnerKey = `${wc.ir},${wc.ic}`;
+    }
+  }
+
+  const inputLabel = padding > 0
+    ? `Padded Input  ${paddedSize}×${paddedSize}  (P=${padding})`
+    : `Input  ${INPUT_SIZE}×${INPUT_SIZE}`;
+  drawLabel(L.ix + L.iW / 2, L.iy - 8, inputLabel, 'rgba(6,182,212,0.8)');
+
+  for (let r = 0; r < paddedSize; r++) {
+    for (let c = 0; c < paddedSize; c++) {
+      const x = L.ix + c * CELL;
+      const y = L.iy + r * CELL;
+      const key = `${r},${c}`;
+      const inRF = rfSet.has(key);
+      const isW = key === winnerKey;
+      const isPad = isPadCell(r, c);
+
+      let bg, tc, bc, bw = 1, glow = null;
+
+      if (isPad) {
+        bg = 'rgba(139,92,246,0.08)';
+        tc = 'rgba(139,92,246,0.4)';
+        bc = 'rgba(139,92,246,0.2)';
+      } else {
+        bg = 'rgba(17,24,39,0.9)';
+        tc = '#cbd5e1';
+        bc = 'rgba(6,182,212,0.25)';
+      }
+
+      if (inRF) {
+        if (isPad) {
+          bg = 'rgba(139,92,246,0.15)';
+          bc = 'rgba(139,92,246,0.55)';
+          tc = 'rgba(139,92,246,0.65)';
+          bw = 2;
+          glow = 'rgba(139,92,246,0.3)';
+        } else if (isW) {
+          bg = 'rgba(244,63,94,0.2)';
+          bc = 'rgba(244,63,94,0.8)';
+          bw = 2;
+          glow = 'rgba(244,63,94,0.5)';
+          tc = '#fff';
+        } else {
+          bg = 'rgba(249,115,22,0.12)';
+          bc = 'rgba(249,115,22,0.6)';
+          bw = 2;
+          glow = 'rgba(249,115,22,0.3)';
+          tc = '#fff';
+        }
+      }
+
+      const displayVal = isPad ? (poolMode === 'max' ? '-∞' : '0') : paddedInput[r][c];
+      drawCell(x, y, displayVal, bg, tc, bc, bw, glow, isW && !isPad);
+
+      if (isPad && !inRF) {
+        ctx.save();
+        ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = 'rgba(139,92,246,0.15)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 4, y + 4, CELL - 8, CELL - 8);
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+    }
+  }
+
+  if (padding > 0) {
+    ctx.save();
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = 'rgba(139,92,246,0.3)';
+    ctx.lineWidth = 1.5;
+    roundRect(L.ix + padding * CELL, L.iy + padding * CELL, INPUT_SIZE * CELL, INPUT_SIZE * CELL, 3, null, 'rgba(139,92,246,0.3)', 1.5);
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  if (!done) {
+    const wx = L.ix + pc * stride * CELL - 3;
+    const wy = L.iy + pr * stride * CELL - 3;
+    const ww = poolSize * CELL + 6;
+    const wh = poolSize * CELL + 6;
+    ctx.save();
+    ctx.shadowColor = 'rgba(249,115,22,0.5)';
+    ctx.shadowBlur = 16;
+    roundRect(wx, wy, ww, wh, 7, 'rgba(249,115,22,0.05)', '#f97316', 2.5);
+    ctx.restore();
+  }
+
+  const modeLabel = poolMode === 'max' ? 'Max' : 'Avg';
+  drawLabel(L.ox + L.oW / 2, L.oy - 8, `Output  ${outputSize}×${outputSize}  (${modeLabel} Pool)`, 'rgba(16,185,129,0.8)');
+
+  for (let r = 0; r < outputSize; r++) {
+    for (let c = 0; c < outputSize; c++) {
+      const x = L.ox + c * CELL;
+      const y = L.oy + r * CELL;
+      const v = outputData[r][c];
+      const isCur = !done && r === pr && c === pc;
+
+      if (isCur) {
+        drawCell(x, y, v !== null ? v : '·', 'rgba(16,185,129,0.25)', '#fff', 'rgba(16,185,129,0.7)', 2.5, 'rgba(16,185,129,0.5)');
+      } else if (v !== null) {
+        drawCell(x, y, v, 'rgba(16,185,129,0.12)', '#10b981', 'rgba(16,185,129,0.5)', 1.5);
+      } else {
+        drawCell(x, y, '·', 'rgba(17,24,39,0.9)', 'rgba(100,116,139,0.4)', 'rgba(16,185,129,0.25)', 1);
+      }
+    }
+  }
+
+  if (!done) {
+    const info = poolCompute(pr, pc);
+    const t = Date.now() / 1000;
+    for (const cell of info.cells) {
+      const ix = L.ix + cell.ic * CELL + CELL / 2;
+      const iy2 = L.iy + cell.ir * CELL + CELL / 2;
+      const oxx = L.ox + pc * CELL + CELL / 2;
+      const oyy = L.oy + pr * CELL + CELL / 2;
+      const alpha = 0.1 + 0.06 * Math.sin(t * 3 + cell.ir + cell.ic);
+      ctx.save();
+      ctx.strokeStyle = `rgba(16,185,129,${alpha})`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(ix, iy2);
+      ctx.lineTo(oxx, oyy);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  drawArrow(L.ix + L.iW + 12, L.iy + L.iH / 2, L.ox - 12, L.oy + L.oH / 2, 'rgba(148,163,184,0.3)');
+
+  ctx.save();
+  ctx.font = '400 10px "JetBrains Mono", monospace';
+  ctx.fillStyle = 'rgba(148,163,184,0.45)';
+  ctx.textAlign = 'center';
+  const midX = (L.ix + L.iW + L.ox) / 2;
+  const midY = L.iy + L.iH / 2;
+  ctx.fillText(poolMode === 'max' ? 'max()' : 'avg()', midX, midY - 16);
+  ctx.fillText(`pool ${poolSize}×${poolSize}`, L.ix + L.iW / 2, L.iy + L.iH + 18);
+  ctx.fillText(`stride = ${stride}`, L.ix + L.iW / 2, L.iy + L.iH + 32);
+  ctx.fillText(`padding = ${padding}`, L.ix + L.iW / 2, L.iy + L.iH + 46);
+  ctx.restore();
+
+  if (done) {
+    ctx.save();
+    ctx.font = '700 16px "Noto Sans SC", sans-serif';
+    ctx.fillStyle = '#10b981';
+    ctx.textAlign = 'center';
+    ctx.fillText('✓ 池化计算完成', L.cW / 2, L.cH - 12);
+    ctx.restore();
+  }
+}
+
+function updateUI() {
+  const step = Math.min(currentStep, totalSteps - 1);
+  const { r: pr, c: pc } = pos(step);
+  const el = document.getElementById('stepDisplay');
+  el.innerHTML = `步骤 <span class="hl">${Math.min(currentStep + 1, totalSteps)}</span> / <span class="hl">${totalSteps}</span> · 窗口位置: (<span class="hl">${pr}</span>, <span class="hl">${pc}</span>)`;
+
+  const det = document.getElementById('compDetail');
+  if (currentStep < totalSteps) {
+    const info = poolCompute(pr, pc);
+    if (poolMode === 'max') {
+      const parts = info.vals.map((v, i) => {
+        const display = v === -Infinity ? '<span style="color:var(--accent-violet)">-∞</span>' : v;
+        return i === info.winIdx ? `<span class="winner">${display}</span>` : display;
+      });
+      det.innerHTML = `<div class="calc-box">max( ${parts.join(', ')} ) = <span class="winner">${info.result}</span></div>`;
+    } else {
+      const parts = info.vals.join(' + ');
+      det.innerHTML = `<div class="calc-box">( ${parts} ) / ${info.vals.length} = ${info.sum} / ${info.vals.length} = <span class="avg-val">${info.result}</span></div>`;
+    }
+  } else {
+    det.innerHTML = '';
+  }
+
+  const sd = document.getElementById('sizeDisplay');
+  if (padding > 0) {
+    const eff = INPUT_SIZE + 2 * padding - poolSize;
+    sd.innerHTML = `O = ⌊(<span class="val">${INPUT_SIZE}</span> + 2·<span class="val">${padding}</span> − <span class="val">${poolSize}</span>) / <span class="val">${stride}</span>⌋ + 1 = ⌊<span class="val">${eff}</span> / <span class="val">${stride}</span>⌋ + 1 = <span class="val">${outputSize}</span>`;
+  } else {
+    sd.innerHTML = `O = ⌊(<span class="val">${INPUT_SIZE}</span> − <span class="val">${poolSize}</span>) / <span class="val">${stride}</span>⌋ + 1 = <span class="val">${outputSize}</span>`;
+  }
+}
+
+function stepForward() {
+  if (currentStep >= totalSteps) return false;
+  const { r: pr, c: pc } = pos(currentStep);
+  const { result } = poolCompute(pr, pc);
+  outputData[pr][pc] = result;
+  currentStep++;
+  updateUI();
+  draw();
+  return currentStep < totalSteps;
+}
+
+function fullReset() {
+  stopAnim();
+  currentStep = 0;
+  rebuild();
+  updateUI();
+  draw();
+  document.getElementById('compDetail').innerHTML = '';
+}
+
+function startAnim() {
+  if (animating) return;
+  if (currentStep >= totalSteps) fullReset();
+  animating = true;
+  document.getElementById('btnPlay').classList.add('active');
+  tick();
+}
+
+function tick() {
+  if (!animating) return;
+  const delay = Math.max(80, 700 / animSpeed);
+  animTimer = setTimeout(() => {
+    if (!animating) return;
+    if (stepForward()) tick(); else stopAnim();
+  }, delay);
+}
+
+function stopAnim() {
+  animating = false;
+  if (animTimer) clearTimeout(animTimer);
+  animTimer = null;
+  document.getElementById('btnPlay').classList.remove('active');
+}
+
+document.getElementById('btnPlay').addEventListener('click', startAnim);
+document.getElementById('btnPause').addEventListener('click', stopAnim);
+document.getElementById('btnStep').addEventListener('click', () => { stopAnim(); stepForward(); });
+document.getElementById('btnReset').addEventListener('click', fullReset);
+
+document.getElementById('speedSlider').addEventListener('input', e => {
+  animSpeed = e.target.value / 5;
+  document.getElementById('speedLabel').textContent = animSpeed.toFixed(1) + 'x';
+});
+
+document.querySelectorAll('.param-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const p = btn.dataset.param;
+    const v = btn.dataset.val;
+    document.querySelectorAll(`.param-btn[data-param="${p}"]`).forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (p === 'mode') poolMode = v;
+    if (p === 'pool') poolSize = parseInt(v);
+    if (p === 'stride') stride = parseInt(v);
+    if (p === 'padding') padding = parseInt(v);
+    fullReset();
+  });
+});
+
+rebuild();
+updateUI();
+
+(function loop() {
+  draw();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

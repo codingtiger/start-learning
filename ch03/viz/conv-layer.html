@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>卷积层计算动画 · Convolution Layer</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});"></script>
+<style>
+:root {
+  --bg-deep: #0a0e1a;
+  --bg-card: #111827;
+  --accent-blue: #3b82f6;
+  --accent-cyan: #06b6d4;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-rose: #f43f5e;
+  --accent-violet: #8b5cf6;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-dim: #475569;
+  --border: #1e293b;
+  --glow-blue: rgba(59, 130, 246, 0.3);
+  --glow-cyan: rgba(6, 182, 212, 0.3);
+  --glow-emerald: rgba(16, 185, 129, 0.3);
+  --glow-amber: rgba(245, 158, 11, 0.3);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: 'Noto Sans SC', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.grain-overlay {
+  position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+}
+
+header {
+  text-align: center;
+  padding: 48px 24px 24px;
+  position: relative;
+}
+
+header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 120px; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+}
+
+header h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.8rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue), var(--accent-violet));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+header p {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 24px 64px;
+}
+
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 0 8px;
+  flex-wrap: wrap;
+}
+
+.ctrl-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 10px 28px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.ctrl-btn:hover { border-color: var(--accent-blue); color: var(--text-primary); }
+.ctrl-btn.active {
+  border-color: var(--accent-cyan);
+  color: #fff;
+  background: linear-gradient(135deg, rgba(6,182,212,0.2), rgba(59,130,246,0.2));
+  box-shadow: 0 0 20px var(--glow-cyan);
+}
+
+.ctrl-btn.primary {
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-violet));
+  border-color: transparent;
+  color: #fff;
+}
+.ctrl-btn.primary:hover {
+  box-shadow: 0 0 24px var(--glow-blue);
+  transform: translateY(-1px);
+}
+
+.param-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  flex-wrap: wrap;
+}
+
+.param-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(17,24,39,0.6);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 6px 8px;
+}
+
+.param-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 0 8px;
+}
+
+.param-btn {
+  background: transparent;
+  border: 1px solid rgba(100,116,139,0.3);
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.25s ease;
+}
+
+.param-btn:hover { border-color: var(--accent-violet); color: var(--text-primary); }
+.param-btn.active {
+  background: linear-gradient(135deg, rgba(139,92,246,0.25), rgba(59,130,246,0.2));
+  border-color: var(--accent-violet);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(139,92,246,0.3);
+}
+
+.speed-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  padding-bottom: 16px;
+}
+
+.speed-control label {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.speed-slider {
+  -webkit-appearance: none;
+  width: 160px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+}
+
+.speed-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  cursor: pointer;
+  box-shadow: 0 0 10px var(--glow-cyan);
+}
+
+.canvas-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+  overflow-x: auto;
+}
+
+canvas {
+  border-radius: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+.info-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.info-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.info-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 4px; height: 100%;
+}
+
+.info-card.cyan::before { background: var(--accent-cyan); }
+.info-card.amber::before { background: var(--accent-amber); }
+.info-card.emerald::before { background: var(--accent-emerald); }
+.info-card.rose::before { background: var(--accent-rose); }
+.info-card.violet::before { background: var(--accent-violet); }
+
+.info-card h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-card .badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.badge-cyan { background: rgba(6,182,212,0.15); color: var(--accent-cyan); border: 1px solid rgba(6,182,212,0.3); }
+.badge-amber { background: rgba(245,158,11,0.15); color: var(--accent-amber); border: 1px solid rgba(245,158,11,0.3); }
+.badge-emerald { background: rgba(16,185,129,0.15); color: var(--accent-emerald); border: 1px solid rgba(16,185,129,0.3); }
+.badge-rose { background: rgba(244,63,94,0.15); color: var(--accent-rose); border: 1px solid rgba(244,63,94,0.3); }
+.badge-violet { background: rgba(139,92,246,0.15); color: var(--accent-violet); border: 1px solid rgba(139,92,246,0.3); }
+
+.info-card p, .info-card .math-line {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.math-line {
+  font-family: 'JetBrains Mono', monospace;
+  padding: 8px 12px;
+  background: rgba(15,23,42,0.8);
+  border-radius: 8px;
+  margin: 8px 0;
+  border: 1px solid rgba(100,116,139,0.2);
+}
+
+.step-display {
+  text-align: center;
+  padding: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.step-display .highlight {
+  color: var(--accent-cyan);
+  font-weight: 700;
+}
+
+.legend {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  padding: 12px 0;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.legend-color {
+  width: 14px; height: 14px;
+  border-radius: 4px;
+}
+
+.computation-detail {
+  text-align: center;
+  padding: 12px;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.computation-detail .calc-expr {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  color: var(--text-primary);
+  background: rgba(6,182,212,0.08);
+  padding: 8px 20px;
+  border-radius: 10px;
+  border: 1px solid rgba(6,182,212,0.2);
+  max-width: 100%;
+  overflow-x: auto;
+  line-height: 1.6;
+}
+
+.output-size-display {
+  text-align: center;
+  padding: 4px 0 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.output-size-display .val { color: var(--accent-violet); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="grain-overlay"></div>
+
+<header>
+  <h1>Convolution Layer</h1>
+  <p>卷积层计算过程 · 滑动窗口 · Padding · 特征提取</p>
+</header>
+
+<div class="container">
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-color" style="background:rgba(6,182,212,0.5);border:2px solid #06b6d4;"></div>输入 (Input)</div>
+    <div class="legend-item"><div class="legend-color" style="background:rgba(139,92,246,0.4);border:2px solid #8b5cf6;"></div>Padding (Zero)</div>
+    <div class="legend-item"><div class="legend-color" style="background:rgba(245,158,11,0.5);border:2px solid #f59e0b;"></div>卷积核 (Kernel)</div>
+    <div class="legend-item"><div class="legend-color" style="background:rgba(16,185,129,0.5);border:2px solid #10b981;"></div>输出 (Output)</div>
+    <div class="legend-item"><div class="legend-color" style="background:rgba(244,63,94,0.4);border:2px solid #f43f5e;"></div>感受野</div>
+  </div>
+
+  <div class="param-row">
+    <div class="param-group">
+      <span class="param-label">Padding</span>
+      <button class="param-btn active" data-param="padding" data-val="0">0</button>
+      <button class="param-btn" data-param="padding" data-val="1">1</button>
+      <button class="param-btn" data-param="padding" data-val="2">2</button>
+    </div>
+    <div class="param-group">
+      <span class="param-label">Stride</span>
+      <button class="param-btn active" data-param="stride" data-val="1">1</button>
+      <button class="param-btn" data-param="stride" data-val="2">2</button>
+    </div>
+  </div>
+
+  <div class="output-size-display" id="outputSizeDisplay"></div>
+
+  <div class="controls">
+    <button class="ctrl-btn primary" id="btnPlay">▶ 播放</button>
+    <button class="ctrl-btn" id="btnPause">⏸ 暂停</button>
+    <button class="ctrl-btn" id="btnStep">⏭ 单步</button>
+    <button class="ctrl-btn" id="btnReset">↺ 重置</button>
+  </div>
+
+  <div class="speed-control">
+    <label>速度</label>
+    <input type="range" class="speed-slider" id="speedSlider" min="1" max="10" value="5">
+    <span id="speedLabel" style="color:var(--accent-cyan);font-family:'JetBrains Mono',monospace;font-size:0.85rem;">1.0x</span>
+  </div>
+
+  <div class="step-display" id="stepDisplay"></div>
+  <div class="computation-detail" id="compDetail"></div>
+
+  <div class="canvas-wrapper">
+    <canvas id="convCanvas"></canvas>
+  </div>
+
+  <div class="info-panel">
+    <div class="info-card cyan">
+      <h3><span class="badge badge-cyan">1</span> 卷积运算</h3>
+      <p>卷积核在输入特征图上滑动，对每个位置覆盖的区域（感受野）执行逐元素乘法后求和，加上偏置得到输出值。</p>
+      <div class="math-line">$$y_{i,j} = \sum_{m}\sum_{n} x_{i+m,\,j+n} \cdot w_{m,n} + b$$</div>
+    </div>
+    <div class="info-card violet">
+      <h3><span class="badge badge-violet">2</span> Padding（填充）</h3>
+      <p>在输入特征图边缘填充零值（zero-padding），使卷积核能覆盖边缘区域。</p>
+      <p style="margin-top:6px"><strong>作用：</strong>① 保持输出与输入相同尺寸（"same" padding）；② 让边缘像素也能被充分利用；③ 控制输出维度。</p>
+      <div class="math-line">$$\text{same padding}: P = \left\lfloor K/2 \right\rfloor$$</div>
+    </div>
+    <div class="info-card amber">
+      <h3><span class="badge badge-amber">3</span> 输出尺寸公式</h3>
+      <p>输出尺寸由输入大小 $I$、卷积核大小 $K$、填充 $P$ 和步长 $S$ 共同决定：</p>
+      <div class="math-line">$$O = \left\lfloor \frac{I + 2P - K}{S} \right\rfloor + 1$$</div>
+    </div>
+    <div class="info-card emerald">
+      <h3><span class="badge badge-emerald">4</span> Padding 对比</h3>
+      <p>切换上方的 Padding 按钮观察效果：</p>
+      <p style="margin-top:4px">• <strong>P=0</strong>（valid）：输出缩小，$6 \to 4$</p>
+      <p>• <strong>P=1</strong>（same）：输出与输入同大小，$6 \to 6$</p>
+      <p>• <strong>P=2</strong>（full）：输出更大，$6 \to 8$</p>
+    </div>
+    <div class="info-card rose">
+      <h3><span class="badge badge-rose">5</span> 特征提取</h3>
+      <p>不同卷积核提取不同特征：边缘、纹理、形状等。本例使用垂直边缘检测核 $[1,0,-1]$，对左右列做差分，检测垂直方向亮度变化。</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('convCanvas');
+const ctx = canvas.getContext('2d');
+
+const RAW_SIZE = 6;
+const KERNEL_SIZE = 3;
+const BIAS = 0;
+function cellSize() {
+  const ps = RAW_SIZE + 2 * padding;
+  const os = Math.floor((ps - KERNEL_SIZE) / stride) + 1;
+  const totalCells = ps + KERNEL_SIZE + os;
+  const maxW = Math.min(1000, window.innerWidth - 60);
+  const overhead = 200;
+  return Math.min(50, Math.max(32, Math.floor((maxW - overhead) / totalCells)));
+}
+
+const rawInput = [
+  [1, 0, 2, 1, 0, 3],
+  [0, 1, 3, 0, 2, 1],
+  [2, 3, 0, 1, 1, 0],
+  [1, 0, 2, 3, 0, 2],
+  [0, 2, 1, 0, 3, 1],
+  [3, 1, 0, 2, 1, 0]
+];
+
+const kernelData = [
+  [ 1, 0, -1],
+  [ 1, 0, -1],
+  [ 1, 0, -1]
+];
+
+let padding = 0;
+let stride = 1;
+let CELL = 52;
+let paddedSize, outputSize, totalSteps;
+let paddedInput, outputData;
+let currentStep = 0;
+let animating = false;
+let animTimer = null;
+let animSpeed = 1.0;
+
+function buildPaddedInput() {
+  CELL = cellSize();
+  paddedSize = RAW_SIZE + 2 * padding;
+  outputSize = Math.floor((paddedSize - KERNEL_SIZE) / stride) + 1;
+  totalSteps = outputSize * outputSize;
+  paddedInput = Array.from({length: paddedSize}, () => Array(paddedSize).fill(0));
+  for (let r = 0; r < RAW_SIZE; r++)
+    for (let c = 0; c < RAW_SIZE; c++)
+      paddedInput[r + padding][c + padding] = rawInput[r][c];
+  outputData = Array.from({length: outputSize}, () => Array(outputSize).fill(null));
+}
+
+function isPaddingCell(r, c) {
+  return r < padding || r >= padding + RAW_SIZE || c < padding || c >= padding + RAW_SIZE;
+}
+
+function getKernelPos(step) {
+  const r = Math.floor(step / outputSize);
+  const c = step % outputSize;
+  return { r, c };
+}
+
+function computeConvolution(kr, kc) {
+  let sum = 0;
+  const products = [];
+  for (let m = 0; m < KERNEL_SIZE; m++) {
+    for (let n = 0; n < KERNEL_SIZE; n++) {
+      const ir = kr * stride + m;
+      const ic = kc * stride + n;
+      const iv = paddedInput[ir][ic];
+      const kv = kernelData[m][n];
+      const p = iv * kv;
+      products.push({ ir, ic, m, n, inputVal: iv, kernelVal: kv, product: p, isPad: isPaddingCell(ir, ic) });
+      sum += p;
+    }
+  }
+  return { sum: sum + BIAS, products };
+}
+
+function layoutMetrics() {
+  const inputGridW = paddedSize * CELL;
+  const inputGridH = paddedSize * CELL;
+  const kernelGridW = KERNEL_SIZE * CELL;
+  const kernelGridH = KERNEL_SIZE * CELL;
+  const outputGridW = outputSize * CELL;
+  const outputGridH = outputSize * CELL;
+
+  const hGap = 60;
+  const totalW = inputGridW + hGap + kernelGridW + hGap + outputGridW;
+  const marginX = 40;
+  const canvasW = totalW + marginX * 2;
+  const maxGridH = Math.max(inputGridH, kernelGridH, outputGridH);
+  const topMargin = 60;
+  const bottomMargin = 60;
+  const canvasH = maxGridH + topMargin + bottomMargin;
+
+  const ix = marginX;
+  const iy = topMargin;
+  const kx = ix + inputGridW + hGap;
+  const ky = topMargin + (inputGridH - kernelGridH) / 2;
+  const ox = kx + kernelGridW + hGap;
+  const oy = topMargin + (inputGridH - outputGridH) / 2;
+
+  return { canvasW, canvasH, ix, iy, kx, ky, ox, oy, inputGridW, inputGridH, kernelGridW, kernelGridH, outputGridW, outputGridH };
+}
+
+function drawRoundedRect(x, y, w, h, r, fill, stroke, lw) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);
+  ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);
+  ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; ctx.stroke(); }
+}
+
+function drawCell(x, y, value, bg, textColor, borderColor, borderWidth, glow) {
+  if (glow) {
+    ctx.save();
+    ctx.shadowColor = glow;
+    ctx.shadowBlur = 14;
+    drawRoundedRect(x+1, y+1, CELL-2, CELL-2, 5, bg, borderColor, borderWidth || 1);
+    ctx.restore();
+  } else {
+    drawRoundedRect(x+1, y+1, CELL-2, CELL-2, 5, bg, borderColor, borderWidth || 1);
+  }
+  ctx.fillStyle = textColor || '#f1f5f9';
+  const fs = Math.max(11, Math.round(CELL * 0.3));
+  ctx.font = `600 ${fs}px "JetBrains Mono", monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  if (value !== null && value !== undefined) {
+    ctx.fillText(value.toString(), x + CELL/2, y + CELL/2);
+  }
+}
+
+function drawLabel(x, y, text, color) {
+  ctx.fillStyle = color || '#94a3b8';
+  ctx.font = '600 12px "Noto Sans SC", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(text, x, y);
+}
+
+function drawArrow(fromX, fromY, toX, toY, color, dashed) {
+  ctx.save();
+  ctx.strokeStyle = color || 'rgba(148,163,184,0.4)';
+  ctx.lineWidth = 2;
+  if (dashed) ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(fromX, fromY);
+  const mx = (fromX + toX) / 2;
+  const cpOff = 20;
+  ctx.bezierCurveTo(mx, fromY - cpOff, mx, toY - cpOff, toX, toY);
+  ctx.stroke();
+  const angle = Math.atan2(cpOff, toX - mx);
+  const hl = 10;
+  ctx.setLineDash([]);
+  ctx.fillStyle = color || 'rgba(148,163,184,0.4)';
+  ctx.beginPath();
+  ctx.moveTo(toX, toY);
+  ctx.lineTo(toX - hl * Math.cos(angle - 0.4), toY - hl * Math.sin(angle - 0.4));
+  ctx.lineTo(toX - hl * Math.cos(angle + 0.4), toY - hl * Math.sin(angle + 0.4));
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function draw() {
+  const L = layoutMetrics();
+  canvas.width = L.canvasW;
+  canvas.height = L.canvasH;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const step = Math.min(currentStep, totalSteps - 1);
+  const { r: kr, c: kc } = getKernelPos(step);
+  const completed = currentStep;
+  const isFinished = completed >= totalSteps;
+
+  // --- padded input grid ---
+  drawLabel(L.ix + L.inputGridW / 2, L.iy - 8,
+    padding > 0
+      ? `Padded Input  ${paddedSize}×${paddedSize}  (原始 ${RAW_SIZE}×${RAW_SIZE}, P=${padding})`
+      : `Input  ${RAW_SIZE}×${RAW_SIZE}`,
+    'rgba(6,182,212,0.8)');
+
+  const rfSet = new Set();
+  if (!isFinished) {
+    for (let m = 0; m < KERNEL_SIZE; m++)
+      for (let n = 0; n < KERNEL_SIZE; n++)
+        rfSet.add(`${kr * stride + m},${kc * stride + n}`);
+  }
+
+  for (let r = 0; r < paddedSize; r++) {
+    for (let c = 0; c < paddedSize; c++) {
+      const x = L.ix + c * CELL;
+      const y = L.iy + r * CELL;
+      const isPad = isPaddingCell(r, c);
+      const inRF = rfSet.has(`${r},${c}`);
+
+      let bg, tc, bc, bw = 1, glow = null;
+
+      if (isPad) {
+        bg = 'rgba(139,92,246,0.08)';
+        tc = 'rgba(139,92,246,0.45)';
+        bc = 'rgba(139,92,246,0.25)';
+      } else {
+        bg = 'rgba(17,24,39,0.9)';
+        tc = '#cbd5e1';
+        bc = 'rgba(6,182,212,0.25)';
+      }
+
+      if (inRF) {
+        bg = isPad ? 'rgba(139,92,246,0.18)' : 'rgba(244,63,94,0.15)';
+        bc = isPad ? 'rgba(139,92,246,0.6)' : 'rgba(244,63,94,0.7)';
+        bw = 2.5;
+        glow = isPad ? 'rgba(139,92,246,0.4)' : 'rgba(244,63,94,0.4)';
+        tc = isPad ? 'rgba(139,92,246,0.7)' : '#fff';
+      }
+
+      drawCell(x, y, paddedInput[r][c], bg, tc, bc, bw, glow);
+
+      if (isPad && !inRF) {
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = 'rgba(139,92,246,0.2)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 4, y + 4, CELL - 8, CELL - 8);
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+    }
+  }
+
+  if (padding > 0) {
+    ctx.save();
+    ctx.setLineDash([6, 4]);
+    ctx.strokeStyle = 'rgba(139,92,246,0.3)';
+    ctx.lineWidth = 1.5;
+    drawRoundedRect(L.ix + padding * CELL, L.iy + padding * CELL, RAW_SIZE * CELL, RAW_SIZE * CELL, 4, null, 'rgba(139,92,246,0.3)', 1.5);
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  // --- sliding window ---
+  if (!isFinished) {
+    const wx = L.ix + kc * stride * CELL - 3;
+    const wy = L.iy + kr * stride * CELL - 3;
+    const ww = KERNEL_SIZE * CELL + 6;
+    const wh = KERNEL_SIZE * CELL + 6;
+    ctx.save();
+    ctx.shadowColor = 'rgba(244,63,94,0.6)';
+    ctx.shadowBlur = 18;
+    drawRoundedRect(wx, wy, ww, wh, 7, 'rgba(244,63,94,0.06)', '#f43f5e', 2.5);
+    ctx.restore();
+  }
+
+  // --- kernel grid ---
+  drawLabel(L.kx + L.kernelGridW / 2, L.ky - 8, `Kernel  ${KERNEL_SIZE}×${KERNEL_SIZE}`, 'rgba(245,158,11,0.8)');
+
+  for (let m = 0; m < KERNEL_SIZE; m++) {
+    for (let n = 0; n < KERNEL_SIZE; n++) {
+      const x = L.kx + n * CELL;
+      const y = L.ky + m * CELL;
+      const highlight = !isFinished;
+      drawCell(x, y, kernelData[m][n],
+        highlight ? 'rgba(245,158,11,0.12)' : 'rgba(17,24,39,0.9)',
+        highlight ? '#fbbf24' : '#cbd5e1',
+        highlight ? 'rgba(245,158,11,0.5)' : 'rgba(245,158,11,0.25)',
+        highlight ? 2 : 1,
+        highlight ? 'rgba(245,158,11,0.3)' : null);
+    }
+  }
+
+  // --- output grid ---
+  drawLabel(L.ox + L.outputGridW / 2, L.oy - 8, `Output  ${outputSize}×${outputSize}`, 'rgba(16,185,129,0.8)');
+
+  for (let r = 0; r < outputSize; r++) {
+    for (let c = 0; c < outputSize; c++) {
+      const x = L.ox + c * CELL;
+      const y = L.oy + r * CELL;
+      const val = outputData[r][c];
+      const isCur = !isFinished && r === kr && c === kc;
+      const isDone = val !== null;
+
+      if (isCur) {
+        drawCell(x, y, val !== null ? val : '·', 'rgba(16,185,129,0.25)', '#fff', 'rgba(16,185,129,0.7)', 2.5, 'rgba(16,185,129,0.5)');
+      } else if (isDone) {
+        drawCell(x, y, val, 'rgba(16,185,129,0.12)', '#10b981', 'rgba(16,185,129,0.5)', 1.5, null);
+      } else {
+        drawCell(x, y, '·', 'rgba(17,24,39,0.9)', 'rgba(100,116,139,0.4)', 'rgba(16,185,129,0.25)', 1, null);
+      }
+    }
+  }
+
+  // --- connection lines ---
+  if (!isFinished) {
+    const { products } = computeConvolution(kr, kc);
+    const time = Date.now() / 1000;
+    for (const p of products) {
+      const ix = L.ix + p.ic * CELL + CELL/2;
+      const iy = L.iy + p.ir * CELL + CELL/2;
+      const kxx = L.kx + p.n * CELL + CELL/2;
+      const kyy = L.ky + p.m * CELL + CELL/2;
+      const alpha = 0.12 + 0.08 * Math.sin(time * 3 + p.m * 2 + p.n);
+      ctx.save();
+      ctx.strokeStyle = p.isPad ? `rgba(139,92,246,${alpha})` : `rgba(245,158,11,${alpha})`;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(ix, iy);
+      ctx.lineTo(kxx, kyy);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    for (let i = 0; i < products.length; i++) {
+      const p = products[i];
+      const px = L.ix + p.ic * CELL + CELL/2;
+      const py = L.iy + p.ir * CELL + CELL - 4;
+      const pStr = (p.product >= 0 ? '+' : '') + p.product;
+      const pAlpha = 0.6 + 0.3 * Math.sin(time * 4 + i * 0.5);
+      ctx.save();
+      ctx.font = '700 9px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = p.product > 0 ? `rgba(16,185,129,${pAlpha})` : p.product < 0 ? `rgba(244,63,94,${pAlpha})` : `rgba(148,163,184,${pAlpha})`;
+      ctx.fillText(pStr, px, py - 10);
+      ctx.restore();
+    }
+  }
+
+  // --- arrows ---
+  drawArrow(L.ix + L.inputGridW + 10, L.iy + L.inputGridH / 2, L.kx - 10, L.ky + L.kernelGridH / 2, 'rgba(148,163,184,0.3)', true);
+  drawArrow(L.kx + L.kernelGridW + 10, L.ky + L.kernelGridH / 2, L.ox - 10, L.oy + L.outputGridH / 2, 'rgba(148,163,184,0.3)', true);
+
+  // --- labels ---
+  ctx.save();
+  ctx.font = '400 10px "JetBrains Mono", monospace';
+  ctx.fillStyle = 'rgba(148,163,184,0.45)';
+  ctx.textAlign = 'center';
+  ctx.fillText('×  Σ  + bias', (L.kx + L.kernelGridW + L.ox) / 2, L.ky + L.kernelGridH / 2 - 16);
+  ctx.fillText(`stride = ${stride}`, L.ix + L.inputGridW / 2, L.iy + L.inputGridH + 22);
+  ctx.fillText(`padding = ${padding}`, L.ix + L.inputGridW / 2, L.iy + L.inputGridH + 38);
+  ctx.restore();
+
+  if (isFinished) {
+    ctx.save();
+    ctx.font = '700 16px "Noto Sans SC", sans-serif';
+    ctx.fillStyle = '#10b981';
+    ctx.textAlign = 'center';
+    ctx.fillText('✓ 卷积计算完成', canvas.width / 2, canvas.height - 14);
+    ctx.restore();
+  }
+}
+
+function updateStepDisplay() {
+  const step = Math.min(currentStep, totalSteps - 1);
+  const { r: kr, c: kc } = getKernelPos(step);
+  const display = document.getElementById('stepDisplay');
+  display.innerHTML = `步骤 <span class="highlight">${Math.min(currentStep + 1, totalSteps)}</span> / <span class="highlight">${totalSteps}</span> · 卷积核位置: (<span class="highlight">${kr}</span>, <span class="highlight">${kc}</span>)`;
+
+  const detail = document.getElementById('compDetail');
+  if (currentStep < totalSteps) {
+    const { products, sum } = computeConvolution(kr, kc);
+    const parts = products.map(p => {
+      const iv = p.isPad ? `<span style="color:var(--accent-violet)">${p.inputVal}</span>` : `<span style="color:var(--accent-cyan)">${p.inputVal}</span>`;
+      const kv = p.kernelVal < 0 ? `(${p.kernelVal})` : p.kernelVal;
+      return `${iv}×<span style="color:var(--accent-amber)">${kv}</span>`;
+    });
+    const prodVals = products.map(p => p.product);
+    detail.innerHTML = `
+      <div class="calc-expr">${parts.join(' + ')}</div>
+      <div class="calc-expr" style="margin-top:4px;font-size:0.85rem;color:var(--text-secondary);">= ${prodVals.join(' + ')} = <span style="color:var(--accent-emerald);font-weight:700">${sum}</span></div>
+    `;
+  } else {
+    detail.innerHTML = '';
+  }
+}
+
+function updateOutputSizeDisplay() {
+  const el = document.getElementById('outputSizeDisplay');
+  if (padding > 0) {
+    el.innerHTML = `O = ⌊(<span class="val">${RAW_SIZE}</span> + 2·<span class="val">${padding}</span> − <span class="val">${KERNEL_SIZE}</span>) / <span class="val">${stride}</span>⌋ + 1 = ⌊<span class="val">${RAW_SIZE + 2*padding - KERNEL_SIZE}</span> / <span class="val">${stride}</span>⌋ + 1 = <span class="val">${outputSize}</span>`;
+  } else {
+    el.innerHTML = `O = ⌊(<span class="val">${RAW_SIZE}</span> − <span class="val">${KERNEL_SIZE}</span>) / <span class="val">${stride}</span>⌋ + 1 = <span class="val">${outputSize}</span>`;
+  }
+}
+
+function stepForward() {
+  if (currentStep >= totalSteps) return false;
+  const { r: kr, c: kc } = getKernelPos(currentStep);
+  const { sum } = computeConvolution(kr, kc);
+  outputData[kr][kc] = sum;
+  currentStep++;
+  updateStepDisplay();
+  draw();
+  return currentStep < totalSteps;
+}
+
+function fullReset() {
+  stopAnim();
+  currentStep = 0;
+  buildPaddedInput();
+  updateOutputSizeDisplay();
+  updateStepDisplay();
+  draw();
+  document.getElementById('compDetail').innerHTML = '';
+}
+
+function startAnim() {
+  if (animating) return;
+  if (currentStep >= totalSteps) fullReset();
+  animating = true;
+  document.getElementById('btnPlay').classList.add('active');
+  scheduleNext();
+}
+
+function scheduleNext() {
+  if (!animating) return;
+  const delay = Math.max(80, 700 / animSpeed);
+  animTimer = setTimeout(() => {
+    if (!animating) return;
+    if (stepForward()) { scheduleNext(); } else { stopAnim(); }
+  }, delay);
+}
+
+function stopAnim() {
+  animating = false;
+  if (animTimer) clearTimeout(animTimer);
+  animTimer = null;
+  document.getElementById('btnPlay').classList.remove('active');
+}
+
+document.getElementById('btnPlay').addEventListener('click', startAnim);
+document.getElementById('btnPause').addEventListener('click', stopAnim);
+document.getElementById('btnStep').addEventListener('click', () => { stopAnim(); stepForward(); });
+document.getElementById('btnReset').addEventListener('click', fullReset);
+
+document.getElementById('speedSlider').addEventListener('input', (e) => {
+  animSpeed = e.target.value / 5;
+  document.getElementById('speedLabel').textContent = animSpeed.toFixed(1) + 'x';
+});
+
+document.querySelectorAll('.param-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const param = btn.dataset.param;
+    const val = parseInt(btn.dataset.val);
+    document.querySelectorAll(`.param-btn[data-param="${param}"]`).forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (param === 'padding') padding = val;
+    if (param === 'stride') stride = val;
+    fullReset();
+  });
+});
+
+buildPaddedInput();
+updateOutputSizeDisplay();
+updateStepDisplay();
+
+(function animLoop() {
+  draw();
+  requestAnimationFrame(animLoop);
+})();
+</script>
+</body>
+</html>
